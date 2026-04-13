@@ -47,6 +47,9 @@ def search_passengers():
     last_name = request.args.get("last_name", "").strip()
     cabin_class = request.args.get("cabin_class", "").strip()
     ssr_code = request.args.get("ssr_code", "").strip()
+    seat_num = request.args.get("seat_num", "").strip()
+    flight_num = request.args.get("flight_num", "").strip()
+    departure_date = request.args.get("departure_date", "").strip()
 
     conn = get_connection()
     try:
@@ -73,8 +76,14 @@ def search_passengers():
                    ORDER BY last_name, first_name""",
                 (ssr_code,),
             ).fetchall()
+        elif seat_num and flight_num and departure_date:
+            rows = conn.execute(
+                """SELECT * FROM passengers
+                   WHERE seat = ? AND flight_no = ? AND flight_date = ?""",
+                (seat_num, flight_num, departure_date)
+            ).fetchall()
         else:
-            return jsonify({"error": "provide one of: last_name, cabin_class, ssr_code"}), 400
+            return jsonify({"error": "provide one of: last_name, cabin_class, ssr_code, or seat_num+flight_num+departure_date"}), 400
 
         return jsonify([dict(r) for r in rows])
     finally:

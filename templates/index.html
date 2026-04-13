@@ -101,6 +101,7 @@
       <option value="cabin_class">Cabin Class</option>
       <option value="ssr_code">SSR Code</option>
       <option value="full_flight">Full Flight</option>
+      <option value="seat">Seat</option>
     </select>
 
     <div id="input-wrapper">
@@ -111,6 +112,10 @@
         <option value="Premium Eco">Premium Eco</option>
       </select>
       <select id="ssr-select" style="display:none;"></select>
+      <input type="text" id="seat-input" placeholder="Seat e.g. 12A" style="display:none;" />
+      <input type="text" id="airline-input" placeholder="Airline e.g. AB" style="display:none;" />
+      <input type="text" id="flightnum-input" placeholder="Flight No. e.g. 123" style="display:none;" />
+      <input type="text" id="date-input" placeholder="Date e.g. 2026-04-07" style="display:none;" />
     </div>
 
     <button onclick="doSearch()">Search</button>
@@ -149,9 +154,13 @@
 
   function onSearchTypeChange() {
     const type = document.getElementById("search-type").value;
-    document.getElementById("text-input").style.display   = type === "last_name"   ? "" : "none";
+    document.getElementById("text-input").style.display = type === "last_name"   ? "" : "none";
     document.getElementById("cabin-select").style.display = type === "cabin_class" ? "" : "none";
-    document.getElementById("ssr-select").style.display   = type === "ssr_code"    ? "" : "none";
+    document.getElementById("ssr-select").style.display = type === "ssr_code"    ? "" : "none";
+    document.getElementById("seat-input").style.display = type === "seat" ? "" : "none";
+    document.getElementById("airline-input").style.display = type === "seat" ? "" : "none";
+    document.getElementById("flightnum-input").style.display = type === "seat" ? "" : "none";
+    document.getElementById("date-input").style.display = type === "seat" ? "" : "none";
   }
 
   function doSearch() {
@@ -169,6 +178,17 @@
       const val = document.getElementById("ssr-select").value;
       if (!val) { setStatus("No SSR codes available.", false); return; }
       url = `/passengers/search?ssr_code=${encodeURIComponent(val)}`;
+    } else if (type === "seat") {
+      const seat = document.getElementById("seat-input").value.trim();
+      const airline = document.getElementById("airline-input").value.trim();
+      const flightNum = document.getElementById("flightnum-input").value.trim();
+      const date = document.getElementById("date-input").value.trim();
+      if (!seat || !airline || !flightNum || !date) {
+        setStatus("All four fields (seat, airline, flight number, date) are required for seat search.", false);
+        return;
+      }
+      const airlineFlightNum = airline + " " + flightNum;
+      url = `/passengers/search?seat_num=${encodeURIComponent(seat)}&flight_num=${encodeURIComponent(airlineFlightNum)}&departure_date=${encodeURIComponent(date)}`;
     } else {
       url = "/flights/AB%20123/2026-04-07/SFO/HND/passengers";
     }
