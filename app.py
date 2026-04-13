@@ -1,7 +1,12 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from db import get_connection
 
 app = Flask(__name__)
+
+
+@app.get("/")
+def index():
+    return render_template("index.html")
 
 
 @app.errorhandler(404)

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaxManifestQuery</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e;
+      color: white;
+      padding: 16px 32px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    main { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+
+    .search-bar {
+      background: white;
+      border-radius: 8px;
+      padding: 20px 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      flex-wrap: wrap;
+    }
+
+    .search-bar label { font-weight: 500; white-space: nowrap; }
+
+    select, input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid #cdd0d8;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: white;
+      min-width: 180px;
+    }
+
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #4f6ef7;
+    }
+
+    button {
+      padding: 8px 20px;
+      background: #4f6ef7;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #3a58d6; }
+
+    .status {
+      margin: 16px 0 8px;
+      font-size: 0.9rem;
+      color: #555;
+      min-height: 20px;
+    }
+
+    .error { color: #c0392b; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      font-size: 0.9rem;
+    }
+
+    thead { background: #1a1a2e; color: white; }
+    th { padding: 12px 14px; text-align: left; font-weight: 500; }
+    td { padding: 10px 14px; border-bottom: 1px solid #eef0f4; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f0f3ff; }
+
+    .empty { text-align: center; padding: 40px; color: #888; }
+
+    #input-wrapper { display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+
+<header>PaxManifestQuery</header>
+
+<main>
+  <div class="search-bar">
+    <label for="search-type">Search by:</label>
+    <select id="search-type" onchange="onSearchTypeChange()">
+      <option value="last_name">Last Name</option>
+      <option value="cabin_class">Cabin Class</option>
+      <option value="ssr_code">SSR Code</option>
+      <option value="full_flight">Full Flight</option>
+    </select>
+
+    <div id="input-wrapper">
+      <input type="text" id="text-input" placeholder="Enter last name..." />
+      <select id="cabin-select" style="display:none;">
+        <option value="Business">Business</option>
+        <option value="Economy">Economy</option>
+        <option value="Premium Eco">Premium Eco</option>
+      </select>
+      <select id="ssr-select" style="display:none;"></select>
+    </div>
+
+    <button onclick="doSearch()">Search</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <table id="results-table" style="display:none;">
+    <thead>
+      <tr>
+        <th>Seat</th>
+        <th>Last Name</th>
+        <th>First Name</th>
+        <th>Cabin Class</th>
+        <th>SSR Codes</th>
+        <th>Record Locator</th>
+      </tr>
+    </thead>
+    <tbody id="results-body"></tbody>
+  </table>
+</main>
+
+<script>
+  // Populate SSR dropdown on page load
+  fetch("/ssr_codes")
+    .then(r => r.json())
+    .then(codes => {
+      const sel = document.getElementById("ssr-select");
+      codes.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = `${c.code} — ${c.description}`;
+        sel.appendChild(opt);
+      });
+    });
+
+  function onSearchTypeChange() {
+    const type = document.getElementById("search-type").value;
+    document.getElementById("text-input").style.display   = type === "last_name"   ? "" : "none";
+    document.getElementById("cabin-select").style.display = type === "cabin_class" ? "" : "none";
+    document.getElementById("ssr-select").style.display   = type === "ssr_code"    ? "" : "none";
+  }
+
+  function doSearch() {
+    const type = document.getElementById("search-type").value;
+    let url;
+
+    if (type === "last_name") {
+      const val = document.getElementById("text-input").value.trim();
+      if (!val) { setStatus("Enter a last name to search.", false); return; }
+      url = `/passengers/search?last_name=${encodeURIComponent(val)}`;
+    } else if (type === "cabin_class") {
+      const val = document.getElementById("cabin-select").value;
+      url = `/passengers/search?cabin_class=${encodeURIComponent(val)}`;
+    } else if (type === "ssr_code") {
+      const val = document.getElementById("ssr-select").value;
+      if (!val) { setStatus("No SSR codes available.", false); return; }
+      url = `/passengers/search?ssr_code=${encodeURIComponent(val)}`;
+    } else {
+      url = "/flights/AB%20123/2026-04-07/SFO/HND/passengers";
+    }
+
+    setStatus("Loading...", false);
+    fetch(url)
+      .then(r => r.json())
+      .then(data => renderResults(data))
+      .catch(() => setStatus("Request failed.", true));
+  }
+
+  function renderResults(rows) {
+    const tbody = document.getElementById("results-body");
+    const table = document.getElementById("results-table");
+    tbody.innerHTML = "";
+
+    if (rows.length === 0) {
+      setStatus("No results found.", false);
+      table.style.display = "none";
+      return;
+    }
+
+    setStatus(`${rows.length} result${rows.length !== 1 ? "s" : ""}`, false);
+    rows.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.seat ?? ""}</td>
+        <td>${p.last_name ?? ""}</td>
+        <td>${p.first_name ?? ""}</td>
+        <td>${p.cabin_class ?? ""}</td>
+        <td>${p.ssr_codes ?? ""}</td>
+        <td>${p.record_locator ?? ""}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    table.style.display = "table";
+  }
+
+  function setStatus(msg, isError) {
+    const el = document.getElementById("status");
+    el.textContent = msg;
+    el.className = isError ? "status error" : "status";
+  }
+
+  // Allow Enter key to trigger search
+  document.getElementById("text-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") doSearch();
+  });
+</script>
+
+</body>
+</html>
