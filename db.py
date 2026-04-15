@@ -42,7 +42,7 @@ def init_db():
                 ssr_codes      TEXT,
                 notes          TEXT,
                 FOREIGN KEY (flight_no, flight_date, origin, destination)
-                    REFERENCES flights(flight_no, flight_date, origin, destination)
+                REFERENCES flights(flight_no, flight_date, origin, destination)
             );
 
             CREATE TABLE IF NOT EXISTS ssr_codes (
