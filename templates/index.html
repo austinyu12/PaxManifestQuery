@@ -98,9 +98,7 @@
     <label for="search-type">Search by:</label>
     <select id="search-type" onchange="onSearchTypeChange()">
       <option value="last_name">Last Name</option>
-      <option value="cabin_class">Cabin Class</option>
       <option value="ssr_code">SSR Code</option>
-      <option value="full_flight">Full Flight</option>
       <option value="seat">Seat</option>
     </select>
 
@@ -113,12 +111,19 @@
       </select>
       <select id="ssr-select" style="display:none;"></select>
       <input type="text" id="seat-input" placeholder="Seat e.g. 12A" style="display:none;" />
-      <input type="text" id="airline-input" placeholder="Airline e.g. AB" style="display:none;" />
-      <input type="text" id="flightnum-input" placeholder="Flight No. e.g. 123" style="display:none;" />
-      <input type="text" id="date-input" placeholder="Date e.g. 2026-04-07" style="display:none;" />
     </div>
 
     <button onclick="doSearch()">Search</button>
+  </div>
+
+  <div class="search-bar">
+    <label>Filter by Cabin:</label>
+    <select id="cabin-filter" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="Business">Business</option>
+      <option value="Economy">Economy</option>
+      <option value="Premium Eco">Premium Eco</option>
+    </select>
   </div>
 
   <div class="status" id="status"></div>
@@ -139,6 +144,7 @@
 </main>
 
 <script>
+  let allPassengers = [];
   // Populate SSR dropdown on page load
   fetch("/ssr_codes")
     .then(r => r.json())
@@ -152,15 +158,26 @@
       });
     });
 
+  fetch("/flights/AB%20123/2026-04-07/SFO/HND/passengers")
+    .then(r => r.json())
+    .then(data => {
+      allPassengers = data;
+      renderResults(data);
+    });
+
   function onSearchTypeChange() {
     const type = document.getElementById("search-type").value;
     document.getElementById("text-input").style.display = type === "last_name" ? "" : "none";
-    document.getElementById("cabin-select").style.display = type === "cabin_class" ? "" : "none";
     document.getElementById("ssr-select").style.display = type === "ssr_code" ? "" : "none";
     document.getElementById("seat-input").style.display = type === "seat" ? "" : "none";
-    document.getElementById("airline-input").style.display = type === "seat" ? "" : "none";
-    document.getElementById("flightnum-input").style.display = type === "seat" ? "" : "none";
-    document.getElementById("date-input").style.display = type === "seat" ? "" : "none";
+  }
+
+  function applyFilters() {
+    const cabin = document.getElementById("cabin-filter").value;
+    const filtered = allPassengers.filter(p => {
+      return cabin === "" || p.cabin_class === cabin;
+    });
+    renderResults(filtered);
   }
 
   function doSearch() {
@@ -171,24 +188,14 @@
       const val = document.getElementById("text-input").value.trim();
       if (!val) { setStatus("Enter a last name to search.", false); return; }
       url = `/passengers/search?last_name=${encodeURIComponent(val)}`;
-    } else if (type === "cabin_class") {
-      const val = document.getElementById("cabin-select").value;
-      url = `/passengers/search?cabin_class=${encodeURIComponent(val)}`;
     } else if (type === "ssr_code") {
       const val = document.getElementById("ssr-select").value;
       if (!val) { setStatus("No SSR codes available.", false); return; }
       url = `/passengers/search?ssr_code=${encodeURIComponent(val)}`;
     } else if (type === "seat") {
       const seat = document.getElementById("seat-input").value.trim();
-      const airline = document.getElementById("airline-input").value.trim();
-      const flightNum = document.getElementById("flightnum-input").value.trim();
-      const date = document.getElementById("date-input").value.trim();
-      if (!seat || !airline || !flightNum || !date) {
-        setStatus("All four fields (seat, airline, flight number, date) are required for seat search.", false);
-        return;
-      }
-      const airlineFlightNum = airline + " " + flightNum;
-      url = `/passengers/search?seat_num=${encodeURIComponent(seat)}&flight_num=${encodeURIComponent(airlineFlightNum)}&departure_date=${encodeURIComponent(date)}`;
+      if (!seat) { setStatus("Enter a seat number.", false); return; }
+      url = `/passengers/search?seat_num=${encodeURIComponent(seat)}&flight_num=AB%20123&departure_date=2026-04-07`;
     } else {
       url = "/flights/AB%20123/2026-04-07/SFO/HND/passengers";
     }
