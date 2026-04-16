@@ -8,6 +8,9 @@ app = Flask(__name__)
 def index():
     return render_template("index.html")
 
+@app.get("/passenger")
+def search_passenger():
+    return render_template("passenger.html")
 
 @app.errorhandler(404)
 def not_found(e):
