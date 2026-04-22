@@ -97,7 +97,15 @@
 </header>
 
 <main>
+
   <div class="search-bar">
+    <label for="flight-num">Find flight:</label>
+    <input type="text" id="flight-num" placeholder="Flight No. e.g. AB 123" />
+    <input type="text" id="flight-date" placeholder="Date e.g. 2026-04-07" />
+    <input type="text" id="flight-origin" placeholder="Origin e.g. SFO" />
+    <input type="text" id="flight-dest" placeholder="Destination e.g. HND" />
+    <button onclick="findFlight()">Search</button>
+
     <label for="search-type">Search by:</label>
     <select id="search-type" onchange="onSearchTypeChange()">
       <option value="last_name">Last Name</option>
@@ -116,7 +124,7 @@
       <input type="text" id="seat-input" placeholder="Seat e.g. 12A" style="display:none;" />
     </div>
 
-    <button onclick="doSearch()">Search</button>
+    <button onclick="findPax()">Search</button>
   </div>
 
   <div class="search-bar">
@@ -148,6 +156,8 @@
 
 <script>
   let allPassengers = [];
+  let currFlightNum = "";
+  let currFlightDate = "";
   // Populate SSR dropdown on page load
   fetch("/ssr_codes")
     .then(r => r.json())
@@ -160,13 +170,27 @@
         sel.appendChild(opt);
       });
     });
-
-  fetch("/flights/AB%20123/2026-04-07/SFO/HND/passengers")
+  
+  function findFlight() {
+    const flightNum = document.getElementById("flight-num").value.trim();
+    const flightDate = document.getElementById("flight-date").value.trim();
+    const flightOrigin = document.getElementById("flight-origin").value.trim();
+    const flightDest = document.getElementById("flight-dest").value.trim();
+    const url = `/flights/${encodeURIComponent(flightNum)}`
+              + `/${encodeURIComponent(flightDate)}`
+              + `/${encodeURIComponent(flightOrigin)}`
+              + `/${encodeURIComponent(flightDest)}`
+              + `/passengers`
+    fetch(url)
     .then(r => r.json())
     .then(data => {
       allPassengers = data;
       renderResults(data);
-    });
+      currFlightNum = flightNum;
+      currFlightDate = flightDate;
+    })
+    .catch(() => setStatus("Flight not found.", true));
+  }
 
   function onSearchTypeChange() {
     const type = document.getElementById("search-type").value;
@@ -183,7 +207,7 @@
     renderResults(filtered);
   }
 
-  function doSearch() {
+  function findPax() {
     const type = document.getElementById("search-type").value;
     let url;
 
@@ -198,9 +222,9 @@
     } else if (type === "seat") {
       const seat = document.getElementById("seat-input").value.trim();
       if (!seat) { setStatus("Enter a seat number.", false); return; }
-      url = `/passengers/search?seat_num=${encodeURIComponent(seat)}&flight_num=AB%20123&departure_date=2026-04-07`;
-    } else {
-      url = "/flights/AB%20123/2026-04-07/SFO/HND/passengers";
+      url = `/passengers/search?seat_num=${encodeURIComponent(seat)}`
+      + `&flight_num=${encodeURIComponent(currFlightNum)}`
+      + `&departure_date=${encodeURIComponent(currFlightDate)}`;
     }
 
     setStatus("Loading...", false);
@@ -245,7 +269,7 @@
 
   // Allow Enter key to trigger search
   document.getElementById("text-input").addEventListener("keydown", e => {
-    if (e.key === "Enter") doSearch();
+    if (e.key === "Enter") findPax();
   });
 </script>
 

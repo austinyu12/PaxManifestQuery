@@ -61,7 +61,7 @@ def _insert_flight(conn, wb):
     origin      = meta.get("Origin", "").split()[0]
     destination = meta.get("Destination", "").split()[0]
     conn.execute(
-        """INSERT INTO flights (flight_no, flight_date, origin, destination, operator)
+        """INSERT OR REPLACE INTO flights (flight_no, flight_date, origin, destination, operator)
            VALUES (?, ?, ?, ?, ?)""",
         (flight_no, flight_date, origin, destination, meta.get("Operator")),
     )
@@ -71,6 +71,11 @@ def _insert_flight(conn, wb):
 def _insert_passengers(conn, wb, flight_key):
     """Insert all passengers from the Passenger Manifest sheet."""
     flight_no, flight_date, origin, destination = flight_key
+    conn.execute(
+        """DELETE FROM passengers
+           WHERE flight_no = ? AND flight_date = ? AND origin = ? AND destination = ?""",
+        (flight_no, flight_date, origin, destination),
+    )
     ws = wb["Passenger Manifest"]
     headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
     col = {name: idx for idx, name in enumerate(headers)}
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     import sys
     import os
 
-    xlsx_path = sys.argv[1] if len(sys.argv) > 1 else "AB_123_Passenger_Manifest_Updated.xlsx"
+    xlsx_path = sys.argv[1] if len(sys.argv) > 1 else "AB_123_Passenger_Manifest_v2.xlsx"
     if not os.path.exists(xlsx_path):
         print(f"File not found: {xlsx_path}")
         sys.exit(1)
